@@ -1350,6 +1350,22 @@ function App() {
 
   const product = PRODUCTS[active];
 
+  // model-viewer emits native custom events. React 18 does not reliably
+  // forward these through JSX event props, so listen on the element itself.
+  useEffect(() => {
+    const model = modelRef.current;
+    if (!model) return;
+    const markReady = () => setModelReady(true);
+    const markFailed = () => setModelReady(false);
+    model.addEventListener('load', markReady);
+    model.addEventListener('error', markFailed);
+    if (model.loaded) markReady();
+    return () => {
+      model.removeEventListener('load', markReady);
+      model.removeEventListener('error', markFailed);
+    };
+  }, []);
+
   // Professional, deliberately restrained cursor response for the GLB.
   useEffect(() => {
     const model = modelRef.current;
@@ -1463,9 +1479,7 @@ function App() {
             exposure="1.05"
             environment-image="neutral"
             loading="eager"
-            reveal="auto"
-            onLoad={() => setModelReady(true)}
-            onError={() => setModelReady(false)}>
+            reveal="auto">
           </model-viewer>
           <div className="shoe3d-hint">Move cursor to explore</div>
         </div>
