@@ -54,13 +54,15 @@
     transition: opacity .55s ease, transform .9s cubic-bezier(.16,1,.3,1), filter .5s ease;
     filter: saturate(.92);
   }
-  .stage.orange-3d.model-ready .shoe3d-scene {
+  .stage.orange-3d .shoe3d-scene {
     opacity: 1;
     transform: translate3d(0, 0, 0) scale(1);
-    pointer-events: auto;
     filter: saturate(1);
   }
+  .stage.orange-3d.model-ready .shoe3d-scene { pointer-events: auto; }
   .shoe3d-canvas {
+    position: relative;
+    z-index: 1;
     display: block;
     width: 100%;
     height: 100%;
@@ -68,7 +70,25 @@
     outline: none;
     filter: drop-shadow(0 28px 22px rgba(77,20,0,.22));
   }
-  .stage.orange-3d.model-ready .s2-layer { visibility: hidden; }
+  .stage.orange-3d .s2-layer { visibility: hidden; }
+  .shoe3d-poster {
+    position: absolute;
+    z-index: 2;
+    left: 56.5%;
+    top: 34%;
+    width: 64%;
+    height: auto;
+    transform: translate(-50%, -50%);
+    opacity: 1;
+    pointer-events: none;
+    filter: drop-shadow(0 28px 22px rgba(77,20,0,.22));
+    transition: opacity .4s ease, transform .7s cubic-bezier(.16,1,.3,1), visibility 0s .4s;
+  }
+  .stage.orange-3d.model-ready .shoe3d-poster {
+    opacity: 0;
+    visibility: hidden;
+    transform: translate(-50%, -50%) scale(1.015);
+  }
   .hide-shoe .shoe3d-scene { opacity: 0 !important; visibility: hidden; }
   .shoe3d-hint {
     position: absolute;
@@ -1361,7 +1381,7 @@ function App() {
     const start = () => {
       if (disposed || !canvas3dRef.current || !window.Shoe3D) return;
       scene3dRef.current = window.Shoe3D.mount(canvas3dRef.current, {
-        src: 'assets/01-orange-shoe/orange%20sneaker%203d%20model.glb',
+        src: 'assets/01-orange-shoe/orange%20sneaker%203d%20model.glb?v=concept1c',
         onReady: () => !disposed && setModelReady(true),
         onError: () => !disposed && setModelReady(false),
       });
@@ -1443,6 +1463,7 @@ function App() {
       {/* 2D canvas stage */}
       <div className="canvas-mount" ref={mountRef}>
         <div className="shoe3d-scene" aria-label="Interactive 3D orange sneaker">
+          <img className="shoe3d-poster" src="assets/01-orange-shoe/concept1-poster.png" alt="" aria-hidden="true" />
           <canvas ref={canvas3dRef} className="shoe3d-canvas" aria-label="Interactive orange sneaker" />
           <div className="shoe3d-hint">Move cursor to explore</div>
         </div>
