@@ -1,0 +1,1597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Wear your style with Comfort</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet" />
+<script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+<style>
+  @font-face {
+    font-family: 'HelveticaNeue';
+    src: url('https://res.cloudinary.com/dgupuutfn/raw/upload/v1781098007/HelveticaNeueLight_tv4vi9.otf') format('opentype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%; width: 100%;
+    overflow: hidden;
+    font-family: 'HelveticaNeue', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  #root { height: 100%; width: 100%; }
+
+  /* ── stage ── */
+  .stage {
+    position: fixed; inset: 0;
+    overflow: hidden;
+    transition: background-color .7s ease;
+  }
+
+  /* ── canvas mount for stage2d ── */
+  .canvas-mount {
+    position: absolute; inset: 0; z-index: 1;
+  }
+
+  /* Shoes V2 — real 3D hero. The UI and background remain untouched. */
+  .shoe3d-wrap {
+    position: absolute;
+    z-index: 8;
+    left: 27%;
+    right: 18%;
+    top: 13%;
+    bottom: 16%;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(10px) scale(.985);
+    transition: opacity .45s ease, transform .65s cubic-bezier(.16,1,.3,1);
+  }
+  .stage.orange-3d.model-ready .shoe3d-wrap {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+  }
+  .shoe3d {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    --poster-color: transparent;
+    cursor: grab;
+    filter: drop-shadow(0 34px 25px rgba(77,20,0,.26));
+  }
+  .shoe3d:active { cursor: grabbing; }
+  .stage.orange-3d.model-ready .s2-layer { visibility: hidden; }
+  .shoe3d-hint {
+    position: absolute;
+    left: 50%; bottom: 3%;
+    transform: translateX(-50%);
+    color: rgba(255,255,255,.55);
+    font-size: 10px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    pointer-events: none;
+    transition: opacity .3s ease;
+  }
+  .shoe3d-wrap:hover .shoe3d-hint { opacity: 0; }
+  @media (max-width: 820px) {
+    .shoe3d-wrap { left: 8%; right: 8%; top: 18%; bottom: 24%; }
+  }
+
+  /* ── 2D stage background layers ── */
+  .s2-bg {
+    position: absolute; inset: -8%;
+    background-size: cover; background-position: center;
+    will-change: opacity;
+  }
+
+  /* ── shoe layer ── */
+  .s2-layer {
+    position: absolute; inset: 0;
+    transform-origin: center center;
+    pointer-events: none;
+    backface-visibility: hidden;
+  }
+
+  .s2-shoewrap {
+    position: absolute; left: 50%; top: 47%;
+    transform: translate(-50%, -50%);
+    animation: s2float 6.5s ease-in-out infinite;
+    will-change: transform;
+  }
+  @keyframes s2float {
+    0%, 100% { transform: translate(-50%, calc(-50% - 7px)); }
+    50%       { transform: translate(-50%, calc(-50% + 9px)); }
+  }
+
+  .s2-tilt {
+    perspective: 1700px;
+    transform-style: preserve-3d;
+    transition: transform .5s cubic-bezier(.2,.8,.3,1);
+  }
+  .s2-fit { transform-origin: center center; }
+  .s2-shoe {
+    display: block; width: 100%; height: auto;
+    transform-origin: center 58%;
+    -webkit-user-drag: none; user-select: none; pointer-events: none;
+    will-change: transform, opacity;
+  }
+
+  /* ── hide-shoe mode ── */
+  .hide-shoe .s2-layer { visibility: hidden; }
+
+  /* ── drop shadow (inside wrap — hidden, ground-shadow used instead) ── */
+  .s2-shadow { display: none; }
+
+  /* ── Nike swoosh watermarks (3 stacked) ── */
+  .watermarks-group {
+    position: absolute;
+    z-index: 2;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    user-select: none;
+  }
+  .watermark {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    aspect-ratio: 1 / 1;
+    background: rgba(0,0,0,0.12);
+    -webkit-mask-image: url('https://res.cloudinary.com/dgupuutfn/image/upload/v1781098007/nikelogo_nej5tt.png');
+    mask-image: url('https://res.cloudinary.com/dgupuutfn/image/upload/v1781098007/nikelogo_nej5tt.png');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    pointer-events: none;
+    user-select: none;
+  }
+  .watermark-1 { background: rgba(0,0,0,0.09); }
+  .watermark-2 { background: rgba(0,0,0,0.14); }
+  .watermark-3 { background: rgba(0,0,0,0.19); }
+
+  /* ── Ground shadow (fixed, not inside floating wrap) ── */
+  .ground-shadow {
+    display: none; /* ← shadow OFF. Delete/comment THIS LINE to turn the shadow back ON. */
+    position: absolute;
+    z-index: 4;
+    top: 64%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 46%;
+    height: 46px;
+    background: rgba(0,0,0,0.78);
+    border-radius: 50%;
+    filter: blur(32px);
+    pointer-events: none;
+  }
+
+  /* ── loader ── */
+  .loader {
+    position: absolute; inset: 0; z-index: 40;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 18px;
+    background: #ce4109;
+    transition: opacity .6s ease, visibility .6s;
+  }
+  .loader.gone { opacity: 0; visibility: hidden; }
+  .loader-ring {
+    width: 44px; height: 44px; border-radius: 50%;
+    border: 3px solid rgba(255,255,255,.25);
+    border-top-color: #fff;
+    animation: spin .9s linear infinite;
+  }
+  .loader-text { color: rgba(255,255,255,.7); font-size: 13px; letter-spacing: .06em; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── top bar ── */
+  .topbar {
+    position: absolute; z-index: 20; top: 0; left: 0; right: 0;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: clamp(14px,2.5vw,26px) clamp(20px,4vw,52px);
+  }
+
+  .logo img {
+    height: 56px;
+    filter: brightness(0) invert(1);
+    display: block;
+  }
+
+  .navpills {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
+    display: flex; align-items: center; gap: 2px;
+    background: rgba(0,0,0,.18);
+    padding: 5px; border-radius: 999px;
+    backdrop-filter: blur(6px);
+  }
+  .pill {
+    border: 0; background: transparent; cursor: pointer;
+    color: rgba(255,255,255,.8); font-family: inherit; font-weight: 600;
+    font-size: clamp(11px,1.1vw,13px); padding: 8px clamp(12px,1.5vw,20px); border-radius: 999px;
+    transition: .2s; white-space: nowrap;
+    letter-spacing: .02em;
+  }
+  .pill:hover { color: #fff; }
+  .pill.active { background: rgba(255,255,255,.95); color: #1c1c1c; }
+
+  .actions { display: flex; align-items: center; gap: 10px; }
+  .iconbtn {
+    width: 40px; height: 40px; border-radius: 50%;
+    display: grid; place-items: center; cursor: pointer; color: #fff;
+    background: rgba(0,0,0,.22); border: 1px solid rgba(255,255,255,.12);
+    padding: 0; outline: none; transition: .2s; position: relative;
+  }
+  .iconbtn:hover { background: rgba(0,0,0,.36); }
+  .iconbtn.cart { background: rgba(255,255,255,.95); color: #1c1c1c; border-color: transparent; }
+  .badge {
+    position: absolute; top: -4px; right: -4px;
+    min-width: 18px; height: 18px; padding: 0 4px; border-radius: 999px;
+    background: #1c1c1c; color: #fff; font-size: 10px; font-weight: 800;
+    display: grid; place-items: center;
+  }
+
+  /* ── hero copy ── */
+  .hero {
+    position: absolute; z-index: 15;
+    left: clamp(20px,4vw,52px);
+    top: 50%; transform: translateY(-44%);
+    width: clamp(240px,30vw,420px);
+    display: flex; flex-direction: column;
+    gap: clamp(14px,2.2vh,26px);
+  }
+  .shoe-label {
+    color: rgba(255,255,255,.7);
+    font-size: clamp(11px,1vw,13px);
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+  .headline {
+    font-weight: 300; line-height: 1.01; letter-spacing: -.01em;
+    font-size: clamp(30px,3.6vw,54px);
+    color: #fff;
+  }
+  .review-block {
+    display: flex; flex-direction: column;
+  }
+  .review-text {
+    color: rgba(255,255,255,.6);
+    font-size: clamp(10px,.9vw,12px);
+    line-height: 1.55;
+    max-width: 210px;
+    text-wrap: pretty;
+  }
+
+  /* ── dots ── */
+  .dots {
+    position: absolute; z-index: 16; left: 50%; bottom: clamp(100px,14vh,140px);
+    transform: translateX(-50%);
+    display: flex; gap: 8px;
+    background: rgba(0,0,0,.18); padding: 7px 12px; border-radius: 999px;
+  }
+  .dot {
+    width: 7px; height: 7px; border-radius: 50%; border: 0; cursor: pointer;
+    background: rgba(255,255,255,.4); transition: .25s; padding: 0;
+  }
+  .dot.on { width: 20px; border-radius: 999px; background: #fff; }
+
+  /* ── bottom bar ── */
+  .bottom-bar {
+    position: absolute; z-index: 15;
+    bottom: 0; left: 0; right: 0;
+    display: flex; align-items: flex-end; justify-content: space-between;
+    padding: clamp(14px,2.5vw,26px) clamp(20px,4vw,52px);
+    gap: clamp(10px,2vw,28px);
+    pointer-events: none;
+  }
+  .bottom-bar > * { pointer-events: auto; }
+
+  .sizes { flex: none; display: flex; flex-direction: column; gap: 10px; }
+  .sizes-label { color: rgba(255,255,255,.55); font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+  .size-row { display: flex; gap: 7px; }
+  .size-chip {
+    width: 40px; height: 40px; border-radius: 50%; cursor: pointer;
+    font-family: inherit; font-weight: 700; font-size: 13px;
+    color: rgba(255,255,255,.75); background: transparent;
+    border: 1.5px solid rgba(255,255,255,.3); transition: .2s;
+  }
+  .size-chip:hover { border-color: #fff; color: #fff; }
+  .size-chip.on { background: #fff; color: #1c1c1c; border-color: #fff; }
+
+  /* ── right cluster ── */
+  .right-cluster { flex: none; display: flex; flex-direction: column; align-items: stretch; gap: 12px; width: 130px; }
+
+  .price-block { text-align: right; }
+  .price-now { font-weight: 300; font-size: clamp(28px,3.4vw,46px); color: #fff; line-height: 1; }
+
+  /* center price pinned to bottom, same bottom padding as Buy Now */
+  .price-center {
+    position: absolute; z-index: 16;
+    left: 0; right: 0;
+    bottom: clamp(14px,2.5vw,26px);
+    pointer-events: none;
+    font-weight: 300; font-size: clamp(32px,3.8vw,52px);
+    color: #fff; line-height: 1; text-align: center;
+  }
+
+  .arrows { display: flex; gap: 10px; width: 100%; justify-content: space-between; }
+  .arrowbtn {
+    width: 52px; height: 52px; border-radius: 50%; cursor: pointer;
+    display: grid; place-items: center; color: #fff;
+    background: transparent; border: 1.5px solid rgba(255,255,255,.4);
+    padding: 0; outline: none; transition: .2s;
+  }
+  .arrowbtn:hover:not(:disabled) { background: rgba(255,255,255,.15); }
+  .arrowbtn:disabled { opacity: .32; cursor: default; }
+
+  .qty-row { display: flex; align-items: center; width: 100%; justify-content: space-between; }
+  .qty-row .arrowbtn { width: 36px; height: 36px; border-radius: 12px; flex: none; }
+  .qty-val { font-size: clamp(15px,1.5vw,18px); font-weight: 600; color: #fff; min-width: 22px; text-align: center; }
+
+  .buynow {
+    background: rgba(255,255,255,.97); color: #1c1c1c; border: 0; cursor: pointer;
+    font-family: inherit; font-weight: 700; font-size: clamp(13px,1.2vw,15px);
+    padding: 14px 0; border-radius: 999px;
+    transition: .22s; white-space: nowrap; width: 100%;
+    letter-spacing: .02em;
+  }
+  .buynow:hover { transform: translateY(-2px); box-shadow: 0 12px 28px -8px rgba(0,0,0,.4); }
+  .buynow.added { background: #1f8a4c; color: #fff; }
+
+  .fade-key { animation: fadeUp .45s ease both; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
+
+  .twk-fab { display: none !important; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<!-- ─────────────────────────────────────────────────────────────────────────
+     stage2d.js  —  inlined (2D Sneaker Stage · Diagonal Stack Carousel)
+────────────────────────────────────────────────────────────────────────── -->
+<script>
+(function () {
+  const EASE = {
+    out:   'cubic-bezier(0.22, 1, 0.36, 1)',
+    in:    'cubic-bezier(0.55, 0, 0.55, 1)',
+    inOut: 'cubic-bezier(0.65, 0, 0.35, 1)',
+    soft:  'cubic-bezier(0.16, 1, 0.3, 1)',
+    arc:   'cubic-bezier(0.45, 0, 0.2, 1)',
+  };
+
+  const SLOTS = {
+    HERO:   { fx: 0.00,  fy: -0.015, s: 1.00, rot: 0,  blur: 0,   op: 1,    z: 30 },
+    PREV:   { fx: -0.325, fy: 0.300, s: 0.30, rot: -6, blur: 1.1, op: 0.92, z: 16 },
+    NEXT:   { fx: 0.345, fy: -0.255, s: 0.34, rot: 5,  blur: 1.1, op: 0.96, z: 22 },
+    FAR_BL: { fx: -0.62, fy: 0.60,   s: 0.14, rot: -10, blur: 6,  op: 0,    z: 6  },
+    FAR_TR: { fx: 0.66,  fy: -0.55,  s: 0.16, rot: 10,  blur: 6,  op: 0,    z: 6  },
+  };
+
+  const state = {
+    mounted: false,
+    products: [],
+    layers: [],
+    current: 0,
+    busy: false,
+    type: 'momentum',
+    float: true,
+    scale: 70,
+    W: 0, H: 0,
+    container: null,
+    bgFront: null, bgBack: null,
+  };
+
+  let resolveReady;
+  const readyPromise = new Promise((r) => (resolveReady = r));
+
+  function px(slot) { return { x: slot.fx * state.W, y: slot.fy * state.H }; }
+
+  function tf(slot, override) {
+    const p = px(slot);
+    const x = override && override.x != null ? override.x : p.x;
+    const y = override && override.y != null ? override.y : p.y;
+    const s = override && override.s != null ? override.s : slot.s;
+    const r = override && override.rot != null ? override.rot : slot.rot;
+    return `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) scale(${s}) rotate(${r}deg)`;
+  }
+  function flt(blur) { return blur > 0 ? `blur(${blur}px)` : 'blur(0px)'; }
+
+  function relOf(j, c) {
+    return j - c;
+  }
+  function slotForRel(rel) {
+    if (rel === 0) return SLOTS.HERO;
+    if (rel === -1) return SLOTS.PREV;
+    if (rel === 1) return SLOTS.NEXT;
+    return rel < 0 ? SLOTS.FAR_BL : SLOTS.FAR_TR;
+  }
+
+  function applyResponsive() {
+    const w = state.W;
+    let pvS, pushX, pushY, heroS;
+    if (w <= 640) {
+      pvS = 0.62; pushX = 1.06; pushY = 1.12; heroS = 0.96;
+    } else if (w <= 1024) {
+      pvS = 0.82; pushX = 0.96; pushY = 0.98; heroS = 1.0;
+    } else {
+      pvS = 1.0;  pushX = 1.0;  pushY = 1.0;  heroS = 1.0;
+    }
+    SLOTS.HERO.s   = 1.00 * heroS;
+    SLOTS.PREV.s   = 0.30 * pvS;
+    SLOTS.NEXT.s   = 0.34 * pvS;
+    SLOTS.PREV.fx  = -0.325 * pushX; SLOTS.PREV.fy = 0.300 * pushY;
+    SLOTS.NEXT.fx  = 0.345 * pushX;  SLOTS.NEXT.fy = -0.255 * pushY;
+  }
+
+  function makeLayer(p) {
+    const layer = document.createElement('div');
+    layer.className = 's2-layer';
+
+    const wrap = document.createElement('div');
+    wrap.className = 's2-shoewrap';
+    wrap.style.width = state.scale + '%';
+
+    const shadow = document.createElement('div');
+    shadow.className = 's2-shadow';
+
+    const tilt = document.createElement('div');
+    tilt.className = 's2-tilt';
+
+    const fit = document.createElement('div');
+    fit.className = 's2-fit';
+    applyFit(fit, p.fit);
+
+    const img = document.createElement('img');
+    img.className = 's2-shoe';
+    img.src = p.shoe;
+    img.alt = '';
+    img.draggable = false;
+
+    fit.appendChild(img);
+    tilt.appendChild(fit);
+    wrap.append(shadow, tilt);
+    layer.appendChild(wrap);
+    return { layer, wrap, tilt, fit, img, shadow, slot: SLOTS.HERO };
+  }
+
+  function applyFit(el, f) {
+    const k = (f && f.k) || 1;
+    const tx = (f && f.tx) || 0;
+    const ty = (f && f.ty) || 0;
+    el.style.transform = `translate(${tx}%, ${ty}%) scale(${k})`;
+  }
+
+  function park(L, slot) {
+    L.slot = slot;
+    L.layer.style.transform = tf(slot);
+    L.layer.style.filter = flt(slot.blur);
+    L.layer.style.opacity = slot.op;
+    L.layer.style.zIndex = slot.z;
+  }
+
+  function layoutAll() {
+    state.layers.forEach((L, j) => park(L, slotForRel(relOf(j, state.current))));
+  }
+
+  function mount(container, products) {
+    if (state.mounted) return;
+    state.mounted = true;
+    state.products = products.slice();
+    state.container = container;
+    container.classList.add('s2-mount');
+
+    const bgA = document.createElement('div'); bgA.className = 's2-bg';
+    const bgB = document.createElement('div'); bgB.className = 's2-bg';
+    setBg(bgA, products[0]); setBg(bgB, products[0]);
+    bgA.style.opacity = 1; bgA.style.zIndex = 0;
+    bgB.style.opacity = 0; bgB.style.zIndex = 1;
+    container.append(bgA, bgB);
+    state.bgFront = bgA; state.bgBack = bgB;
+
+    measure();
+    applyResponsive();
+
+    state.layers = products.map((p) => {
+      const L = makeLayer(p);
+      container.appendChild(L.layer);
+      return L;
+    });
+    layoutAll();
+    bindFloat();
+    bindParallax(container);
+
+    const im = state.layers[0].img;
+    let settled = false;
+    const finish = () => { if (!settled) { settled = true; resolveReady(); } };
+    if (im.complete && im.naturalWidth) finish();
+    else { im.onload = finish; im.onerror = finish; }
+    setTimeout(finish, 1200);
+
+    products.forEach((p) => { const i = new Image(); i.src = p.shoe; });
+
+    window.addEventListener('resize', onResize);
+    window.dispatchEvent(new Event('shoestage-ready-api'));
+  }
+
+  function setBg(el, p) {
+    el.style.backgroundImage = p.gradient ? p.gradient : `url("${p.bg}")`;
+  }
+
+  function measure() {
+    const r = state.container.getBoundingClientRect();
+    state.W = r.width; state.H = r.height;
+  }
+
+  let resizeRaf = 0;
+  function onResize() {
+    cancelAnimationFrame(resizeRaf);
+    resizeRaf = requestAnimationFrame(() => {
+      measure();
+      applyResponsive();
+      if (!state.busy) layoutAll();
+    });
+  }
+
+  function bindFloat() {
+    state.layers.forEach((L, j) => {
+      const isHero = relOf(j, state.current) === 0;
+      L.wrap.style.animationPlayState = (isHero && state.float) ? 'running' : 'paused';
+    });
+  }
+
+  function bindParallax(container) {
+    const onMove = (e) => {
+      if (state.busy) return;
+      const r = container.getBoundingClientRect();
+      const x = (e.clientX - r.left) / r.width - 0.5;
+      const y = (e.clientY - r.top) / r.height - 0.5;
+      const t = `rotateY(${x * 9}deg) rotateX(${-y * 6}deg) translateZ(0)`;
+      state.layers.forEach((L, j) => {
+        L.tilt.style.transform = relOf(j, state.current) === 0 ? t : '';
+      });
+    };
+    const reset = () => state.layers.forEach((L) => { L.tilt.style.transform = ''; });
+    container.addEventListener('pointermove', onMove);
+    container.addEventListener('pointerleave', reset);
+  }
+
+  function anim(el, frames, dur, ease, delay = 0) {
+    return el.animate(frames, { duration: dur, easing: ease, delay, fill: 'both' });
+  }
+
+  function engineFrames(typ, fromSlot, toSlot, wrap, dir) {
+    const a = px(fromSlot), b = px(toSlot);
+
+    if (wrap) {
+      const outFar = fromSlot === SLOTS.PREV ? SLOTS.FAR_BL : SLOTS.FAR_TR;
+      const inFar  = toSlot === SLOTS.NEXT ? SLOTS.FAR_TR : SLOTS.FAR_BL;
+      const peak = typ === 'depth' ? 8 : typ === 'orbit' ? 4 : 6;
+      return {
+        frames: [
+          { transform: tf(fromSlot), filter: flt(fromSlot.blur), opacity: fromSlot.op, offset: 0 },
+          { transform: tf(outFar),   filter: flt(peak),          opacity: 0, offset: 0.5 },
+          { transform: tf(inFar),    filter: flt(peak),          opacity: 0, offset: 0.5 },
+          { transform: tf(toSlot),   filter: flt(toSlot.blur),   opacity: toSlot.op, offset: 1 },
+        ],
+        dur: ENGINE_DUR[typ], ease: EASE.soft,
+      };
+    }
+
+    if (typ === 'depth') {
+      const midScale = Math.min(fromSlot.s, toSlot.s) * 0.86;
+      const midX = a.x + (b.x - a.x) * 0.5;
+      const midY = a.y + (b.y - a.y) * 0.5;
+      return {
+        frames: [
+          { transform: tf(fromSlot), filter: flt(fromSlot.blur), opacity: fromSlot.op, offset: 0 },
+          { transform: tf(toSlot, { x: midX, y: midY, s: midScale, rot: (fromSlot.rot + toSlot.rot) / 2 }),
+            filter: flt(8), opacity: Math.min(fromSlot.op, toSlot.op) * 0.9, offset: 0.5 },
+          { transform: tf(toSlot), filter: flt(toSlot.blur), opacity: toSlot.op, offset: 1 },
+        ],
+        dur: ENGINE_DUR.depth, ease: EASE.inOut,
+      };
+    }
+
+    if (typ === 'orbit') {
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const nx = -dy / len, ny = dx / len;
+      const bow = len * 0.22 * dir;
+      const midX = a.x + dx * 0.5 + nx * bow;
+      const midY = a.y + dy * 0.5 + ny * bow;
+      const midRot = (fromSlot.rot + toSlot.rot) / 2 + dir * 6;
+      return {
+        frames: [
+          { transform: tf(fromSlot), filter: flt(fromSlot.blur), opacity: fromSlot.op, offset: 0 },
+          { transform: tf(toSlot, { x: midX, y: midY,
+              s: (fromSlot.s + toSlot.s) / 2, rot: midRot }),
+            filter: flt(2.5), opacity: (fromSlot.op + toSlot.op) / 2, offset: 0.5 },
+          { transform: tf(toSlot), filter: flt(toSlot.blur), opacity: toSlot.op, offset: 1 },
+        ],
+        dur: ENGINE_DUR.orbit, ease: EASE.arc,
+      };
+    }
+
+    return {
+      frames: [
+        { transform: tf(fromSlot), filter: flt(fromSlot.blur), opacity: fromSlot.op, offset: 0 },
+        { filter: flt(Math.max(fromSlot.blur, toSlot.blur) + 4.5), offset: 0.32 },
+        { transform: tf(toSlot), filter: flt(toSlot.blur), opacity: toSlot.op, offset: 1 },
+      ],
+      dur: ENGINE_DUR.momentum, ease: EASE.out,
+    };
+  }
+
+  const ENGINE_DUR = { momentum: 820, depth: 900, orbit: 1000 };
+
+  function transition(toIndex, dir = 1, opts = {}) {
+    return new Promise((resolve) => {
+      if (state.busy || toIndex === state.current || !state.products[toIndex]) {
+        resolve(); return;
+      }
+      state.busy = true;
+      const typ = ENGINE_DUR[state.type] != null ? state.type : 'momentum';
+
+      state.layers.forEach((L) => { L.wrap.style.animationPlayState = 'paused'; });
+      state.layers.forEach((L) => { L.tilt.style.transform = ''; });
+
+      const back = state.bgBack;
+      const front = state.bgFront;
+      setBg(back, state.products[toIndex]);
+      back.style.opacity = 0;
+
+      const isImageBg = state.products.every((p) => !p.gradient);
+      const bgAnims = [];
+      let bgDur;
+      if (isImageBg) {
+        bgDur = 1000;
+        const slide = 9 * dir;
+        bgAnims.push(back.animate(
+          [
+            { opacity: 0, transform: `scale(1.18) translateX(${slide}%)`, filter: 'blur(6px)' },
+            { opacity: 1, transform: 'scale(1) translateX(0)', filter: 'blur(0px)' },
+          ],
+          { duration: bgDur, easing: EASE.soft, fill: 'forwards' }
+        ));
+        bgAnims.push(front.animate(
+          [
+            { transform: 'scale(1) translateX(0)' },
+            { transform: `scale(1.07) translateX(${-slide * 0.55}%)` },
+          ],
+          { duration: bgDur, easing: EASE.soft, fill: 'forwards' }
+        ));
+      } else {
+        bgDur = 720;
+        bgAnims.push(back.animate(
+          [{ opacity: 0 }, { opacity: 1 }],
+          { duration: bgDur, easing: EASE.inOut, fill: 'forwards' }
+        ));
+      }
+
+      const anims = bgAnims.slice();
+      let maxDur = bgDur;
+
+      state.layers.forEach((L, j) => {
+        const fromSlot = L.slot;
+        const toSlot = slotForRel(relOf(j, toIndex));
+        if (fromSlot === toSlot) return;
+
+        const fromRel = relOf(j, state.current);
+        const toRel = relOf(j, toIndex);
+        const isWrap = fromRel * toRel < 0 && Math.abs(fromRel) === 1 && Math.abs(toRel) === 1;
+
+        const { frames, dur, ease } = engineFrames(typ, fromSlot, toSlot, isWrap, dir);
+        L.layer.style.zIndex = toSlot.z;
+        L.layer.style.willChange = 'transform, opacity, filter';
+        anims.push(anim(L.layer, frames, dur, ease));
+        L.slot = toSlot;
+        maxDur = Math.max(maxDur, dur);
+      });
+
+      const swapTimer = setTimeout(() => opts.onSwap && opts.onSwap(toIndex), Math.round(maxDur * 0.46));
+
+      let done = false;
+      const commit = () => {
+        if (done) return;
+        done = true;
+        clearTimeout(swapTimer);
+        clearTimeout(safety);
+        opts.onSwap && opts.onSwap(toIndex);
+        anims.forEach((x) => { try { x.cancel(); } catch (e) {} });
+
+        back.style.transform = ''; back.style.filter = '';
+        front.style.transform = ''; front.style.filter = '';
+        back.style.opacity = 1;
+        const oldFront = state.bgFront;
+        state.bgFront = back; state.bgBack = oldFront;
+        state.bgFront.style.zIndex = 0; state.bgFront.style.opacity = 1;
+        state.bgBack.style.zIndex = 1; state.bgBack.style.opacity = 0;
+
+        state.current = toIndex;
+        state.layers.forEach((L) => { L.layer.style.willChange = ''; });
+        layoutAll();
+        bindFloat();
+        state.busy = false;
+        resolve();
+      };
+
+      const safety = setTimeout(commit, maxDur + 260);
+      Promise.all(anims.map((x) => x.finished)).then(commit).catch(commit);
+    });
+  }
+
+  window.ShoeStage = {
+    whenReady: readyPromise,
+    mount,
+    transition,
+    getCurrent: () => state.current,
+    setType: (t) => { if (ENGINE_DUR[t] != null) state.type = t; },
+    setFloat: (on) => { state.float = !!on; if (!state.busy) bindFloat(); },
+    setScale: (pct) => {
+      state.scale = pct;
+      state.layers.forEach((L) => { L.wrap.style.width = pct + '%'; });
+    },
+  };
+})();
+</script>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<!-- ─────────────────────────────────────────────────────────────────────────
+     tweaks-panel.jsx  —  inlined (reusable Tweaks shell + form controls)
+────────────────────────────────────────────────────────────────────────── -->
+<script type="text/babel">
+const __TWEAKS_STYLE = `
+  .twk-panel{position:fixed;right:16px;bottom:16px;z-index:2147483646;width:280px;
+    max-height:calc(100vh - 32px);display:flex;flex-direction:column;
+    transform:scale(var(--dc-inv-zoom,1));transform-origin:bottom right;
+    background:rgba(250,249,247,.78);color:#29261b;
+    -webkit-backdrop-filter:blur(24px) saturate(160%);backdrop-filter:blur(24px) saturate(160%);
+    border:.5px solid rgba(255,255,255,.6);border-radius:14px;
+    box-shadow:0 1px 0 rgba(255,255,255,.5) inset,0 12px 40px rgba(0,0,0,.18);
+    font:11.5px/1.4 'HelveticaNeueLight',ui-sans-serif,system-ui,-apple-system,sans-serif;overflow:hidden}
+  .twk-hd{display:flex;align-items:center;justify-content:space-between;
+    padding:10px 8px 10px 14px;cursor:move;user-select:none}
+  .twk-hd b{font-size:12px;font-weight:600;letter-spacing:.01em}
+  .twk-x{appearance:none;border:0;background:transparent;color:rgba(41,38,27,.55);
+    width:22px;height:22px;border-radius:6px;cursor:default;font-size:13px;line-height:1}
+  .twk-x:hover{background:rgba(0,0,0,.06);color:#29261b}
+  .twk-body{padding:2px 14px 14px;display:flex;flex-direction:column;gap:10px;
+    overflow-y:auto;overflow-x:hidden;min-height:0;
+    scrollbar-width:thin;scrollbar-color:rgba(0,0,0,.15) transparent}
+  .twk-body::-webkit-scrollbar{width:8px}
+  .twk-body::-webkit-scrollbar-track{background:transparent;margin:2px}
+  .twk-body::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);border-radius:4px;
+    border:2px solid transparent;background-clip:content-box}
+  .twk-body::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,.25);
+    border:2px solid transparent;background-clip:content-box}
+  .twk-row{display:flex;flex-direction:column;gap:5px}
+  .twk-row-h{flex-direction:row;align-items:center;justify-content:space-between;gap:10px}
+  .twk-lbl{display:flex;justify-content:space-between;align-items:baseline;
+    color:rgba(41,38,27,.72)}
+  .twk-lbl>span:first-child{font-weight:500}
+  .twk-val{color:rgba(41,38,27,.5);font-variant-numeric:tabular-nums}
+
+  .twk-sect{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+    color:rgba(41,38,27,.45);padding:10px 0 0}
+  .twk-sect:first-child{padding-top:0}
+
+  .twk-field{appearance:none;box-sizing:border-box;width:100%;min-width:0;height:26px;padding:0 8px;
+    border:.5px solid rgba(0,0,0,.1);border-radius:7px;
+    background:rgba(255,255,255,.6);color:inherit;font:inherit;outline:none}
+  .twk-field:focus{border-color:rgba(0,0,0,.25);background:rgba(255,255,255,.85)}
+  select.twk-field{padding-right:22px;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='rgba(0,0,0,.5)' d='M0 0h10L5 6z'/></svg>");
+    background-repeat:no-repeat;background-position:right 8px center}
+
+  .twk-slider{appearance:none;-webkit-appearance:none;width:100%;height:4px;margin:6px 0;
+    border-radius:999px;background:rgba(0,0,0,.12);outline:none}
+  .twk-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
+    width:14px;height:14px;border-radius:50%;background:#fff;
+    border:.5px solid rgba(0,0,0,.12);box-shadow:0 1px 3px rgba(0,0,0,.2);cursor:default}
+  .twk-slider::-moz-range-thumb{width:14px;height:14px;border-radius:50%;
+    background:#fff;border:.5px solid rgba(0,0,0,.12);box-shadow:0 1px 3px rgba(0,0,0,.2);cursor:default}
+
+  .twk-seg{position:relative;display:flex;padding:2px;border-radius:8px;
+    background:rgba(0,0,0,.06);user-select:none}
+  .twk-seg-thumb{position:absolute;top:2px;bottom:2px;border-radius:6px;
+    background:rgba(255,255,255,.9);box-shadow:0 1px 2px rgba(0,0,0,.12);
+    transition:left .15s cubic-bezier(.3,.7,.4,1),width .15s}
+  .twk-seg.dragging .twk-seg-thumb{transition:none}
+  .twk-seg button{appearance:none;position:relative;z-index:1;flex:1;border:0;
+    background:transparent;color:inherit;font:inherit;font-weight:500;min-height:22px;
+    border-radius:6px;cursor:default;padding:4px 6px;line-height:1.2;
+    overflow-wrap:anywhere}
+
+  .twk-toggle{position:relative;width:32px;height:18px;border:0;border-radius:999px;
+    background:rgba(0,0,0,.15);transition:background .15s;cursor:default;padding:0}
+  .twk-toggle[data-on="1"]{background:#34c759}
+  .twk-toggle i{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;
+    background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s}
+  .twk-toggle[data-on="1"] i{transform:translateX(14px)}
+
+  .twk-num{display:flex;align-items:center;box-sizing:border-box;min-width:0;height:26px;padding:0 0 0 8px;
+    border:.5px solid rgba(0,0,0,.1);border-radius:7px;background:rgba(255,255,255,.6)}
+  .twk-num-lbl{font-weight:500;color:rgba(41,38,27,.6);cursor:ew-resize;
+    user-select:none;padding-right:8px}
+  .twk-num input{flex:1;min-width:0;height:100%;border:0;background:transparent;
+    font:inherit;font-variant-numeric:tabular-nums;text-align:right;padding:0 8px 0 0;
+    outline:none;color:inherit;-moz-appearance:textfield}
+  .twk-num input::-webkit-inner-spin-button,.twk-num input::-webkit-outer-spin-button{
+    -webkit-appearance:none;margin:0}
+  .twk-num-unit{padding-right:8px;color:rgba(41,38,27,.45)}
+
+  .twk-btn{appearance:none;height:26px;padding:0 12px;border:0;border-radius:7px;
+    background:rgba(0,0,0,.78);color:#fff;font:inherit;font-weight:500;cursor:default}
+  .twk-btn:hover{background:rgba(0,0,0,.88)}
+  .twk-btn.secondary{background:rgba(0,0,0,.06);color:inherit}
+  .twk-btn.secondary:hover{background:rgba(0,0,0,.1)}
+
+  .twk-swatch{appearance:none;-webkit-appearance:none;width:56px;height:22px;
+    border:.5px solid rgba(0,0,0,.1);border-radius:6px;padding:0;cursor:default;
+    background:transparent;flex-shrink:0}
+  .twk-swatch::-webkit-color-swatch-wrapper{padding:0}
+  .twk-swatch::-webkit-color-swatch{border:0;border-radius:5.5px}
+  .twk-swatch::-moz-color-swatch{border:0;border-radius:5.5px}
+
+  .twk-chips{display:flex;gap:6px}
+  .twk-chip{position:relative;appearance:none;flex:1;min-width:0;height:46px;
+    padding:0;border:0;border-radius:6px;overflow:hidden;cursor:default;
+    box-shadow:0 0 0 .5px rgba(0,0,0,.12),0 1px 2px rgba(0,0,0,.06);
+    transition:transform .12s cubic-bezier(.3,.7,.4,1),box-shadow .12s}
+  .twk-chip:hover{transform:translateY(-1px);
+    box-shadow:0 0 0 .5px rgba(0,0,0,.18),0 4px 10px rgba(0,0,0,.12)}
+  .twk-chip[data-on="1"]{box-shadow:0 0 0 1.5px rgba(0,0,0,.85),
+    0 2px 6px rgba(0,0,0,.15)}
+  .twk-chip>span{position:absolute;top:0;bottom:0;right:0;width:34%;
+    display:flex;flex-direction:column;box-shadow:-1px 0 0 rgba(0,0,0,.1)}
+  .twk-chip>span>i{flex:1;box-shadow:0 -1px 0 rgba(0,0,0,.1)}
+  .twk-chip>span>i:first-child{box-shadow:none}
+  .twk-chip svg{position:absolute;top:6px;left:6px;width:13px;height:13px;
+    filter:drop-shadow(0 1px 1px rgba(0,0,0,.3))}
+`;
+
+const __TWK_STANDALONE = (() => { try { return window.parent === window; } catch (e) { return false; } })();
+const __TWK_STORE_KEY = '__tweaks__' + (typeof location !== 'undefined' ? location.pathname : '');
+
+const __TWKBTN_STYLE = `
+  .twk-fab{position:fixed;right:16px;bottom:16px;z-index:2147483646;
+    width:42px;height:42px;border-radius:50%;display:grid;place-items:center;
+    border:.5px solid rgba(255,255,255,.6);color:#29261b;cursor:pointer;
+    background:rgba(250,249,247,.78);
+    -webkit-backdrop-filter:blur(24px) saturate(160%);backdrop-filter:blur(24px) saturate(160%);
+    box-shadow:0 1px 0 rgba(255,255,255,.5) inset,0 8px 24px rgba(0,0,0,.18);
+    transition:transform .15s ease, box-shadow .15s ease}
+  .twk-fab:hover{transform:translateY(-1px) rotate(30deg);
+    box-shadow:0 1px 0 rgba(255,255,255,.5) inset,0 12px 30px rgba(0,0,0,.22)}
+`;
+
+function useTweaks(defaults) {
+  const [values, setValues] = React.useState(() => {
+    if (__TWK_STANDALONE) {
+      try {
+        const saved = JSON.parse(localStorage.getItem(__TWK_STORE_KEY) || 'null');
+        if (saved && typeof saved === 'object') return { ...defaults, ...saved };
+      } catch (e) {}
+    }
+    return defaults;
+  });
+  const setTweak = React.useCallback((keyOrEdits, val) => {
+    const edits = typeof keyOrEdits === 'object' && keyOrEdits !== null
+      ? keyOrEdits : { [keyOrEdits]: val };
+    setValues((prev) => {
+      const next = { ...prev, ...edits };
+      if (__TWK_STANDALONE) {
+        try { localStorage.setItem(__TWK_STORE_KEY, JSON.stringify(next)); } catch (e) {}
+      }
+      return next;
+    });
+    window.parent.postMessage({ type: '__edit_mode_set_keys', edits }, '*');
+    window.dispatchEvent(new CustomEvent('tweakchange', { detail: edits }));
+  }, []);
+  return [values, setTweak];
+}
+
+function TweaksPanel({ title = 'Tweaks', children }) {
+  const [open, setOpen] = React.useState(false);
+  const dragRef = React.useRef(null);
+  const offsetRef = React.useRef({ x: 16, y: 16 });
+  const PAD = 16;
+
+  const clampToViewport = React.useCallback(() => {
+    const panel = dragRef.current;
+    if (!panel) return;
+    const w = panel.offsetWidth, h = panel.offsetHeight;
+    const maxRight = Math.max(PAD, window.innerWidth - w - PAD);
+    const maxBottom = Math.max(PAD, window.innerHeight - h - PAD);
+    offsetRef.current = {
+      x: Math.min(maxRight, Math.max(PAD, offsetRef.current.x)),
+      y: Math.min(maxBottom, Math.max(PAD, offsetRef.current.y)),
+    };
+    panel.style.right = offsetRef.current.x + 'px';
+    panel.style.bottom = offsetRef.current.y + 'px';
+  }, []);
+
+  React.useEffect(() => {
+    if (!open) return;
+    clampToViewport();
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', clampToViewport);
+      return () => window.removeEventListener('resize', clampToViewport);
+    }
+    const ro = new ResizeObserver(clampToViewport);
+    ro.observe(document.documentElement);
+    return () => ro.disconnect();
+  }, [open, clampToViewport]);
+
+  React.useEffect(() => {
+    const onMsg = (e) => {
+      const t = e?.data?.type;
+      if (t === '__activate_edit_mode') setOpen(true);
+      else if (t === '__deactivate_edit_mode') setOpen(false);
+    };
+    window.addEventListener('message', onMsg);
+    window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+    return () => window.removeEventListener('message', onMsg);
+  }, []);
+
+  const dismiss = () => {
+    setOpen(false);
+    window.parent.postMessage({ type: '__edit_mode_dismissed' }, '*');
+  };
+
+  const onDragStart = (e) => {
+    const panel = dragRef.current;
+    if (!panel) return;
+    const r = panel.getBoundingClientRect();
+    const sx = e.clientX, sy = e.clientY;
+    const startRight = window.innerWidth - r.right;
+    const startBottom = window.innerHeight - r.bottom;
+    const move = (ev) => {
+      offsetRef.current = {
+        x: startRight - (ev.clientX - sx),
+        y: startBottom - (ev.clientY - sy),
+      };
+      clampToViewport();
+    };
+    const up = () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+  };
+
+  if (!open) {
+    if (!__TWK_STANDALONE) return null;
+    return (
+      <>
+        <style>{__TWKBTN_STYLE}</style>
+        <button className="twk-fab" data-omelette-chrome="" aria-label="Open tweaks"
+                onClick={() => setOpen(true)}>
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+               strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        </button>
+      </>
+    );
+  }
+  return (
+    <>
+      <style>{__TWEAKS_STYLE}</style>
+      <div ref={dragRef} className="twk-panel" data-omelette-chrome=""
+           style={{ right: offsetRef.current.x, bottom: offsetRef.current.y }}>
+        <div className="twk-hd" onMouseDown={onDragStart}>
+          <b>{title}</b>
+          <button className="twk-x" aria-label="Close tweaks"
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={dismiss}>✕</button>
+        </div>
+        <div className="twk-body">
+          {children}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function TweakSection({ label, children }) {
+  return (
+    <>
+      <div className="twk-sect">{label}</div>
+      {children}
+    </>
+  );
+}
+
+function TweakRow({ label, value, children, inline = false }) {
+  return (
+    <div className={inline ? 'twk-row twk-row-h' : 'twk-row'}>
+      <div className="twk-lbl">
+        <span>{label}</span>
+        {value != null && <span className="twk-val">{value}</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function TweakSlider({ label, value, min = 0, max = 100, step = 1, unit = '', onChange }) {
+  return (
+    <TweakRow label={label} value={`${value}${unit}`}>
+      <input type="range" className="twk-slider" min={min} max={max} step={step}
+             value={value} onChange={(e) => onChange(Number(e.target.value))} />
+    </TweakRow>
+  );
+}
+
+function TweakToggle({ label, value, onChange }) {
+  return (
+    <div className="twk-row twk-row-h">
+      <div className="twk-lbl"><span>{label}</span></div>
+      <button type="button" className="twk-toggle" data-on={value ? '1' : '0'}
+              role="switch" aria-checked={!!value}
+              onClick={() => onChange(!value)}><i /></button>
+    </div>
+  );
+}
+
+function TweakRadio({ label, value, options, onChange }) {
+  const trackRef = React.useRef(null);
+  const [dragging, setDragging] = React.useState(false);
+  const valueRef = React.useRef(value);
+  valueRef.current = value;
+
+  const labelLen = (o) => String(typeof o === 'object' ? o.label : o).length;
+  const maxLen = options.reduce((m, o) => Math.max(m, labelLen(o)), 0);
+  const fitsAsSegments = maxLen <= ({ 2: 16, 3: 10 }[options.length] ?? 0);
+  if (!fitsAsSegments) {
+    const resolve = (s) => {
+      const m = options.find((o) => String(typeof o === 'object' ? o.value : o) === s);
+      return m === undefined ? s : typeof m === 'object' ? m.value : m;
+    };
+    return <TweakSelect label={label} value={value} options={options}
+                        onChange={(s) => onChange(resolve(s))} />;
+  }
+  const opts = options.map((o) => (typeof o === 'object' ? o : { value: o, label: o }));
+  const idx = Math.max(0, opts.findIndex((o) => o.value === value));
+  const n = opts.length;
+
+  const segAt = (clientX) => {
+    const r = trackRef.current.getBoundingClientRect();
+    const inner = r.width - 4;
+    const i = Math.floor(((clientX - r.left - 2) / inner) * n);
+    return opts[Math.max(0, Math.min(n - 1, i))].value;
+  };
+
+  const onPointerDown = (e) => {
+    setDragging(true);
+    const v0 = segAt(e.clientX);
+    if (v0 !== valueRef.current) onChange(v0);
+    const move = (ev) => {
+      if (!trackRef.current) return;
+      const v = segAt(ev.clientX);
+      if (v !== valueRef.current) onChange(v);
+    };
+    const up = () => {
+      setDragging(false);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+
+  return (
+    <TweakRow label={label}>
+      <div ref={trackRef} role="radiogroup" onPointerDown={onPointerDown}
+           className={dragging ? 'twk-seg dragging' : 'twk-seg'}>
+        <div className="twk-seg-thumb"
+             style={{ left: `calc(2px + ${idx} * (100% - 4px) / ${n})`,
+                      width: `calc((100% - 4px) / ${n})` }} />
+        {opts.map((o) => (
+          <button key={o.value} type="button" role="radio" aria-checked={o.value === value}>
+            {o.label}
+          </button>
+        ))}
+      </div>
+    </TweakRow>
+  );
+}
+
+function TweakSelect({ label, value, options, onChange }) {
+  return (
+    <TweakRow label={label}>
+      <select className="twk-field" value={value} onChange={(e) => onChange(e.target.value)}>
+        {options.map((o) => {
+          const v = typeof o === 'object' ? o.value : o;
+          const l = typeof o === 'object' ? o.label : o;
+          return <option key={v} value={v}>{l}</option>;
+        })}
+      </select>
+    </TweakRow>
+  );
+}
+
+function TweakText({ label, value, placeholder, onChange }) {
+  return (
+    <TweakRow label={label}>
+      <input className="twk-field" type="text" value={value} placeholder={placeholder}
+             onChange={(e) => onChange(e.target.value)} />
+    </TweakRow>
+  );
+}
+
+function TweakNumber({ label, value, min, max, step = 1, unit = '', onChange }) {
+  const clamp = (n) => {
+    if (min != null && n < min) return min;
+    if (max != null && n > max) return max;
+    return n;
+  };
+  const startRef = React.useRef({ x: 0, val: 0 });
+  const onScrubStart = (e) => {
+    e.preventDefault();
+    startRef.current = { x: e.clientX, val: value };
+    const decimals = (String(step).split('.')[1] || '').length;
+    const move = (ev) => {
+      const dx = ev.clientX - startRef.current.x;
+      const raw = startRef.current.val + dx * step;
+      const snapped = Math.round(raw / step) * step;
+      onChange(clamp(Number(snapped.toFixed(decimals))));
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+  return (
+    <div className="twk-num">
+      <span className="twk-num-lbl" onPointerDown={onScrubStart}>{label}</span>
+      <input type="number" value={value} min={min} max={max} step={step}
+             onChange={(e) => onChange(clamp(Number(e.target.value)))} />
+      {unit && <span className="twk-num-unit">{unit}</span>}
+    </div>
+  );
+}
+
+function __twkIsLight(hex) {
+  const h = String(hex).replace('#', '');
+  const x = h.length === 3 ? h.replace(/./g, (c) => c + c) : h.padEnd(6, '0');
+  const n = parseInt(x.slice(0, 6), 16);
+  if (Number.isNaN(n)) return true;
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  return r * 299 + g * 587 + b * 114 > 148000;
+}
+
+const __TwkCheck = ({ light }) => (
+  <svg viewBox="0 0 14 14" aria-hidden="true">
+    <path d="M3 7.2 5.8 10 11 4.2" fill="none" strokeWidth="2.2"
+          strokeLinecap="round" strokeLinejoin="round"
+          stroke={light ? 'rgba(0,0,0,.78)' : '#fff'} />
+  </svg>
+);
+
+function TweakColor({ label, value, options, onChange }) {
+  if (!options || !options.length) {
+    return (
+      <div className="twk-row twk-row-h">
+        <div className="twk-lbl"><span>{label}</span></div>
+        <input type="color" className="twk-swatch" value={value}
+               onChange={(e) => onChange(e.target.value)} />
+      </div>
+    );
+  }
+  const key = (o) => String(JSON.stringify(o)).toLowerCase();
+  const cur = key(value);
+  return (
+    <TweakRow label={label}>
+      <div className="twk-chips" role="radiogroup">
+        {options.map((o, i) => {
+          const colors = Array.isArray(o) ? o : [o];
+          const [hero, ...rest] = colors;
+          const sup = rest.slice(0, 4);
+          const on = key(o) === cur;
+          return (
+            <button key={i} type="button" className="twk-chip" role="radio"
+                    aria-checked={on} data-on={on ? '1' : '0'}
+                    aria-label={colors.join(', ')} title={colors.join(' · ')}
+                    style={{ background: hero }}
+                    onClick={() => onChange(o)}>
+              {sup.length > 0 && (
+                <span>
+                  {sup.map((c, j) => <i key={j} style={{ background: c }} />)}
+                </span>
+              )}
+              {on && <__TwkCheck light={__twkIsLight(hero)} />}
+            </button>
+          );
+        })}
+      </div>
+    </TweakRow>
+  );
+}
+
+function TweakButton({ label, onClick, secondary = false }) {
+  return (
+    <button type="button" className={secondary ? 'twk-btn secondary' : 'twk-btn'}
+            onClick={onClick}>{label}</button>
+  );
+}
+
+Object.assign(window, {
+  useTweaks, TweaksPanel, TweakSection, TweakRow,
+  TweakSlider, TweakToggle, TweakRadio, TweakSelect,
+  TweakText, TweakNumber, TweakColor, TweakButton,
+});
+</script>
+
+<!-- ─────────────────────────────────────────────────────────────────────────
+     App  —  main component
+────────────────────────────────────────────────────────────────────────── -->
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+// ── Products ──────────────────────────────────────────────────────────────
+const PRODUCTS = [
+  {
+    name: 'Nike Air Max Dn SE',
+    sub: 'Bold orange energy. Built for all-day comfort on any terrain.',
+    price: '59.99', was: '79.99', sizes: [39, 40, 41, 42],
+    shoe: 'https://res.cloudinary.com/dgupuutfn/image/upload/v1781098008/shoe-orange_l3m4x9.png',
+    base: '#d74007',
+    gradient: 'radial-gradient(ellipse 70% 72% at 50% 52%, #f0793f 0%, #e25a1d 38%, #d74007 72%, #d74007 100%)',
+    fit: { k: 0.94, tx: 0, ty: 0 },
+  },
+  {
+    name: 'Nike Air Max Golden',
+    sub: 'Premium golden finish meets modern midsole. Make every step shine.',
+    price: '64.99', was: '84.99', sizes: [40, 41, 42, 43],
+    shoe: 'https://res.cloudinary.com/dgupuutfn/image/upload/v1781098008/shoe-golden_yuqe9f.png',
+    base: '#342814',
+    gradient: 'radial-gradient(ellipse 70% 72% at 50% 44%, #9c7e34 0%, #6e5722 34%, #342814 72%, #342814 100%)',
+    fit: { k: 1, tx: 0, ty: 0 },
+  },
+  {
+    name: 'Nike Air Max Pastel',
+    sub: 'Soft pastel hues meet airy cushioning for light, cloud-like steps.',
+    price: '69.99', was: '89.99', sizes: [37, 38, 39, 40],
+    shoe: 'https://res.cloudinary.com/dgupuutfn/image/upload/v1781098008/shoe-pastel_rk21p7.png',
+    base: '#987ea6',
+    gradient: 'radial-gradient(ellipse 70% 72% at 50% 46%, #c9b6d6 0%, #b29cc2 38%, #987ea6 72%, #987ea6 100%)',
+    fit: { k: 1, tx: 0, ty: 0 },
+  },
+];
+
+const NAV = ['Products', 'About', 'Category', 'Contact'];
+
+// ── Icons ──────────────────────────────────────────────────────────────────
+const ArrowLeft = (p) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <path d="M19 12H5M11 18l-6-6 6-6" />
+  </svg>
+);
+const ArrowRight = (p) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <path d="M5 12h14M13 6l6 6-6 6" />
+  </svg>
+);
+const UserIcon = (p) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <circle cx="12" cy="8" r="3.4" /><path d="M5.5 19a6.5 6.5 0 0 1 13 0" />
+  </svg>
+);
+const MinusIcon = (p) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" width="16" height="16" {...p}>
+    <path d="M5 12h14"/>
+  </svg>
+);
+const PlusIcon = (p) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" width="16" height="16" {...p}>
+    <path d="M12 5v14M5 12h14"/>
+  </svg>
+);
+
+// ── App ────────────────────────────────────────────────────────────────────
+function App() {
+  const [active, setActive]   = useState(0);
+  const [tab, setTab]         = useState('Products');
+  const [size, setSize]       = useState(PRODUCTS[0].sizes[0]);
+  const [qty, setQty]         = useState(1);
+  const [cart, setCart]       = useState(2);
+  const [loaded, setLoaded]   = useState(false);
+  const [busy, setBusy]       = useState(false);
+  const [adding, setAdding]   = useState(false);
+  const [modelReady, setModelReady] = useState(false);
+  const mountRef = useRef(null);
+  const modelRef = useRef(null);
+
+  const [t, setTweak] = useTweaks({
+    shoeScale: 68, float: true, transition: 'momentum', hideShoe: false,
+  });
+
+  // Mount stage2d
+  useEffect(() => {
+    let cancelled = false;
+    const start = () => {
+      if (cancelled) return;
+      window.ShoeStage.mount(mountRef.current, PRODUCTS);
+      window.ShoeStage.setType(t.transition);
+      window.ShoeStage.setFloat(t.float);
+      window.ShoeStage.setScale(t.shoeScale);
+      window.ShoeStage.whenReady.then(() => !cancelled && setLoaded(true));
+    };
+    if (window.ShoeStage) start();
+    else window.addEventListener('shoestage-ready-api', start, { once: true });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => { if (loaded) window.ShoeStage.setType(t.transition); }, [loaded, t.transition]);
+  useEffect(() => { if (loaded) window.ShoeStage.setFloat(t.float); }, [loaded, t.float]);
+  useEffect(() => { if (loaded) window.ShoeStage.setScale(t.shoeScale); }, [loaded, t.shoeScale]);
+
+  const product = PRODUCTS[active];
+
+  // Professional, deliberately restrained cursor response for the GLB.
+  useEffect(() => {
+    const model = modelRef.current;
+    const mount = mountRef.current;
+    if (!model || !mount) return;
+    let raf = 0;
+    let azimuth = 74;
+    let polar = 72;
+    let targetAzimuth = azimuth;
+    let targetPolar = polar;
+    const tick = () => {
+      azimuth += (targetAzimuth - azimuth) * 0.075;
+      polar += (targetPolar - polar) * 0.075;
+      model.setAttribute('camera-orbit', `${azimuth.toFixed(2)}deg ${polar.toFixed(2)}deg 105%`);
+      raf = requestAnimationFrame(tick);
+    };
+    const onMove = (e) => {
+      const r = mount.getBoundingClientRect();
+      const x = Math.max(-1, Math.min(1, ((e.clientX - r.left) / r.width - .5) * 2));
+      const y = Math.max(-1, Math.min(1, ((e.clientY - r.top) / r.height - .5) * 2));
+      targetAzimuth = 74 + x * 11;
+      targetPolar = 72 + y * 6;
+    };
+    const onLeave = () => { targetAzimuth = 74; targetPolar = 72; };
+    mount.addEventListener('pointermove', onMove);
+    mount.addEventListener('pointerleave', onLeave);
+    tick();
+    return () => {
+      cancelAnimationFrame(raf);
+      mount.removeEventListener('pointermove', onMove);
+      mount.removeEventListener('pointerleave', onLeave);
+    };
+  }, []);
+
+  const swapTo = useCallback((n, dir) => {
+    if (busy || !loaded || n === active) return;
+    setBusy(true);
+    window.ShoeStage.transition(n, dir, {
+      onSwap: (idx) => {
+        setActive(idx);
+        setSize(PRODUCTS[idx].sizes[0]);
+      },
+    }).then(() => setBusy(false));
+  }, [active, busy, loaded]);
+
+  const go = useCallback((dir) => {
+    const n = Math.max(0, Math.min(PRODUCTS.length - 1, active + dir));
+    swapTo(n, dir);
+  }, [active, swapTo]);
+
+  const goRef = useRef(go);
+  useEffect(() => { goRef.current = go; }, [go]);
+
+  // Wheel + key nav
+  useEffect(() => {
+    if (!loaded) return;
+    let lock = false;
+    let accum = 0, resetT = null;
+    const fire = (dir) => {
+      if (lock) return; lock = true;
+      goRef.current(dir);
+      setTimeout(() => { lock = false; }, 640);
+    };
+    const onWheel = (e) => {
+      e.preventDefault();
+      if (lock) { accum = 0; return; }
+      const d = Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+      accum += d;
+      clearTimeout(resetT);
+      resetT = setTimeout(() => { accum = 0; }, 160);
+      if (Math.abs(accum) > 26) { fire(accum > 0 ? 1 : -1); accum = 0; }
+    };
+    const onKey = (e) => {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowRight') { e.preventDefault(); fire(1); }
+      else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') { e.preventDefault(); fire(-1); }
+    };
+    window.addEventListener('wheel', onWheel, { passive: false });
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('wheel', onWheel);
+      window.removeEventListener('keydown', onKey);
+      clearTimeout(resetT);
+    };
+  }, [loaded]);
+
+  const buyNow = () => {
+    setCart(c => c + 1);
+    setAdding(true);
+    setTimeout(() => setAdding(false), 900);
+  };
+
+  return (
+    <div className={`stage${t.hideShoe ? ' hide-shoe' : ''}${active === 0 ? ' orange-3d' : ''}${modelReady ? ' model-ready' : ''}`} style={{ backgroundColor: product.base }}>
+
+      {/* 2D canvas stage */}
+      <div className="canvas-mount" ref={mountRef}>
+        <div className="shoe3d-wrap" aria-label="Interactive 3D orange sneaker">
+          <model-viewer
+            ref={modelRef}
+            class="shoe3d"
+            src="assets/01-orange-shoe/orange%20sneaker%203d%20model.glb"
+            alt="Orange sneaker in 3D"
+            camera-controls
+            disable-zoom
+            interaction-prompt="none"
+            camera-orbit="74deg 72deg 105%"
+            min-camera-orbit="55deg 62deg 105%"
+            max-camera-orbit="93deg 82deg 105%"
+            field-of-view="27deg"
+            shadow-intensity="0"
+            exposure="1.05"
+            environment-image="neutral"
+            loading="eager"
+            reveal="auto"
+            onLoad={() => setModelReady(true)}
+            onError={() => setModelReady(false)}>
+          </model-viewer>
+          <div className="shoe3d-hint">Move cursor to explore</div>
+        </div>
+        {/* 3 stacked Nike swoosh watermarks — concentric, centered */}
+        <div className="watermarks-group" aria-hidden="true">
+          <div className="watermark watermark-1" style={{
+            width: '66%',
+            top: 'calc(50% + 1.93vw)', left: 'calc(50% + 6.17vw)',
+            transform: 'translate(-50%,-50%) rotate(-8deg)'
+          }}></div>
+          <div className="watermark watermark-2" style={{
+            width: '50%',
+            top: 'calc(50% - 2.85vw)', left: 'calc(50% + 5.89vw)',
+            transform: 'translate(-50%,-50%) rotate(0deg)'
+          }}></div>
+          <div className="watermark watermark-3" style={{
+            width: '37%',
+            top: 'calc(50% - 6.54vw)', left: 'calc(50% + 6.54vw)',
+            transform: 'translate(-50%,-50%) rotate(8deg)'
+          }}></div>
+        </div>
+        {/* Ground shadow — fixed position below shoe center, locked in vw units */}
+        <div className="ground-shadow" style={{
+          top: 'calc(64% + 5.89vw)',
+          left: 'calc(50% + 4.97vw)',
+          width: '39%',
+          height: '4.05vw',
+          transform: 'translateX(-50%) rotate(-11deg)'
+        }} />
+      </div>
+
+      {/* Loader */}
+      <div className={`loader ${loaded ? 'gone' : ''}`}>
+        <div className="loader-ring" />
+        <div className="loader-text">Loading…</div>
+      </div>
+
+      {/* ── TOP BAR ── */}
+      <header className="topbar">
+        <div className="logo">
+          <img src="https://res.cloudinary.com/dgupuutfn/image/upload/v1781098007/nikelogo_nej5tt.png" alt="Nike" style={{height:'68px', filter:'brightness(0) invert(1)', display:'block'}} />
+        </div>
+        <nav className="navpills">
+          {NAV.map(n => (
+            <button key={n} className={`pill ${tab === n ? 'active' : ''}`} onClick={() => setTab(n)}>{n}</button>
+          ))}
+        </nav>
+        <div className="actions">
+          <button className="iconbtn"><UserIcon width="19" height="19" /></button>
+          <button className="iconbtn cart" style={{ position: 'relative' }}>
+            <span className="material-icons-outlined" style={{ fontSize: '19px' }}>shopping_bag</span>
+            {cart > 0 && <span className="badge">{cart}</span>}
+          </button>
+        </div>
+      </header>
+
+      {/* ── HERO COPY ── */}
+      <div className="hero">
+        <h1 className="headline">Wear your<br />style with<br />Comfort</h1>
+        <p className="shoe-label fade-key" key={product.name + 'lbl'}>{product.name}</p>
+        <div className="review-block">
+          <p className="review-text fade-key" key={product.name + 'rv'}>
+            The quality is excellent, packed durably, and the color is a dream. The USS store is excellent. Thank you!! We strive to earn and keep your trust.
+          </p>
+        </div>
+      </div>
+
+      {/* ── DOTS ── */}
+      {/* ── BOTTOM BAR ── */}
+      <div className="bottom-bar">
+        {/* Sizes — left */}
+        <div className="sizes">
+          <span className="sizes-label">Size</span>
+          <div className="size-row">
+            {product.sizes.slice(0,3).map(s => (
+              <button key={s} className={`size-chip ${size === s ? 'on' : ''}`} onClick={() => setSize(s)}>{s}</button>
+            ))}
+          </div>
+        </div>
+
+        {/* Right cluster */}
+        <div className="right-cluster">
+          <div className="arrows">
+            <button className="arrowbtn" disabled={busy || active === 0} onClick={() => go(-1)}>
+              <ArrowLeft width="19" height="19" />
+            </button>
+            <button className="arrowbtn" disabled={busy || active === PRODUCTS.length - 1} onClick={() => go(1)}>
+              <ArrowRight width="19" height="19" />
+            </button>
+          </div>
+          <div className="qty-row">
+            <button className="arrowbtn" onClick={() => setQty(q => Math.max(1, q - 1))}><MinusIcon /></button>
+            <span className="qty-val">{qty}</span>
+            <button className="arrowbtn" onClick={() => setQty(q => q + 1)}><PlusIcon /></button>
+          </div>
+          <button className={`buynow ${adding ? 'added' : ''}`} onClick={buyNow}>
+            {adding ? 'Added ✓' : 'Buy Now'}
+          </button>
+        </div>
+      </div>
+
+      {/* ── CENTER PRICE ── */}
+      <div className="price-center fade-key" key={product.name + 'pc'}>${product.price}</div>
+      <TweaksPanel>
+        <TweakSection label="Motion" />
+        <TweakRadio label="Transition" value={t.transition}
+          options={[
+            { value: 'momentum', label: 'Momentum' },
+            { value: 'depth',    label: 'Depth' },
+            { value: 'orbit',    label: 'Orbit' },
+          ]}
+          onChange={v => setTweak('transition', v)} />
+        <TweakSection label="Stage" />
+        <TweakSlider label="Shoe scale" value={t.shoeScale} min={48} max={88} step={1} unit="%" onChange={v => setTweak('shoeScale', v)} />
+        <TweakToggle label="Idle float" value={t.float} onChange={v => setTweak('float', v)} />
+        <TweakToggle label="Hide shoe" value={t.hideShoe} onChange={v => setTweak('hideShoe', v)} />
+
+        <TweakButton label="Reset all" secondary onClick={() => setTweak({
+          shoeScale: 68, float: true, transition: 'momentum', hideShoe: false,
+        })} />
+      </TweaksPanel>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
