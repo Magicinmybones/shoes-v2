@@ -39,14 +39,14 @@
     position: absolute; inset: 0; z-index: 1;
   }
 
-  /* Shoes V2 — Design 2: cinematic depth stack. UI remains untouched. */
+  /* Shoes V2 — Concept 1: single-shoe magnetic float. UI remains untouched. */
   .shoe3d-scene {
     position: absolute;
     z-index: 8;
-    left: 22%;
-    right: 11%;
-    top: 8%;
-    bottom: 9%;
+    left: 24%;
+    right: 8%;
+    top: 10%;
+    bottom: 11%;
     pointer-events: none;
     opacity: 0;
     transform: translate3d(4%, 0, 0) scale(.94);
@@ -64,9 +64,9 @@
     display: block;
     width: 100%;
     height: 100%;
-    cursor: crosshair;
+    cursor: grab;
     outline: none;
-    filter: drop-shadow(0 30px 24px rgba(77,20,0,.24));
+    filter: drop-shadow(0 28px 22px rgba(77,20,0,.22));
   }
   .stage.orange-3d.model-ready .s2-layer { visibility: hidden; }
   .hide-shoe .shoe3d-scene { opacity: 0 !important; visibility: hidden; }
@@ -1442,8 +1442,8 @@ function App() {
 
       {/* 2D canvas stage */}
       <div className="canvas-mount" ref={mountRef}>
-        <div className="shoe3d-scene" aria-label="Interactive 3D orange sneaker composition">
-          <canvas ref={canvas3dRef} className="shoe3d-canvas" aria-label="Three interactive views of the orange sneaker" />
+        <div className="shoe3d-scene" aria-label="Interactive 3D orange sneaker">
+          <canvas ref={canvas3dRef} className="shoe3d-canvas" aria-label="Interactive orange sneaker" />
           <div className="shoe3d-hint">Move cursor to explore</div>
         </div>
         {/* 3 stacked Nike swoosh watermarks — concentric, centered */}
